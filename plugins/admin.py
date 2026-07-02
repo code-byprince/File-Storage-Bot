@@ -108,3 +108,24 @@ async def logs_cmd(client: Client, message: Message):
         return
     lines = [f"• `{l['admin_id']}` — {l['action']} — {l['time'].strftime('%Y-%m-%d %H:%M')}" for l in logs]
     await message.reply("📝 **Admin Logs:**\n\n" + "\n".join(lines))
+
+
+@Client.on_message(filters.private & filters.forwarded & filters.text)
+@admin_only
+async def get_channel_id_cmd(client: Client, message: Message):
+    """Admin forwards a TEXT message FROM the private DB channel to this bot,
+    and the bot replies with the exact channel ID Pyrogram recognizes."""
+    if message.forward_from_chat:
+        chat = message.forward_from_chat
+        await message.reply(
+            f"✅ **Channel Detected!**\n\n"
+            f"📛 Name: {chat.title}\n"
+            f"🆔 ID: `{chat.id}`\n\n"
+            f"👉 Copy this exact ID and put it in your `DB_CHANNEL` environment variable on Render, "
+            f"then redeploy."
+        )
+    else:
+        await message.reply(
+            "⚠️ This doesn't look like a forward from a channel. "
+            "Please forward a message directly from your private DB channel to me."
+    )
