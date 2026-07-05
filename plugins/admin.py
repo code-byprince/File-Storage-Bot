@@ -128,4 +128,5 @@ async def get_channel_id_cmd(client: Client, message: Message):
         await message.reply(
             "⚠️ This doesn't look like a forward from a channel. "
             "Please forward a message directly from your private DB channel to me."
-        )
+    )
+    
