@@ -10,6 +10,7 @@ files_col = db["files"]
 logs_col = db["admin_logs"]
 
 
+# ---------------------------------------------------------------- USERS ----
 async def add_user(user_id: int, username: str, first_name: str):
     existing = await users_col.find_one({"user_id": user_id})
     if not existing:
@@ -23,7 +24,7 @@ async def add_user(user_id: int, username: str, first_name: str):
                 "last_seen": datetime.datetime.utcnow(),
             }
         )
-        return True
+        return True  # new user
     else:
         await users_col.update_one(
             {"user_id": user_id},
@@ -59,6 +60,7 @@ async def online_users(minutes: int = 10) -> int:
     return await users_col.count_documents({"last_seen": {"$gte": since}})
 
 
+# ---------------------------------------------------------------- FILES ----
 async def save_file(data: dict):
     await files_col.insert_one(data)
 
@@ -146,6 +148,7 @@ async def today_uploads() -> int:
     return await files_col.count_documents({"uploaded_at": {"$gte": start}})
 
 
+# ------------------------------------------------------------ ADMIN LOGS ----
 async def add_log(admin_id: int, action: str):
     await logs_col.insert_one(
         {"admin_id": admin_id, "action": action, "time": datetime.datetime.utcnow()}
