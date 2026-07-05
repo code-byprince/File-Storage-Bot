@@ -90,8 +90,8 @@ async def handle_upload(client: Client, message: Message):
             [InlineKeyboardButton("🔵 Share Link", switch_inline_query=link)],
             [
                 InlineKeyboardButton("⭐ Favorite", callback_data=f"fav_{code}"),
-                InlineKeyboardButton("🟡 Rename", callback_data=f"ren_{code}"),
-                InlineKeyboardButton("🔴 Delete", callback_data=f"del_{code}"),
+                InlineKeyboardButton("✏️ Rename", callback_data=f"ren_{code}"),
+                InlineKeyboardButton("🗑 Delete", callback_data=f"del_{code}"),
             ],
         ]
     )
