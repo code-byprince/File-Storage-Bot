@@ -34,12 +34,12 @@ def force_sub_markup():
 def main_menu_markup():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("📂 My Files", callback_data="myfiles_0"),
-             InlineKeyboardButton("⭐ Favorites", callback_data="favs_0")],
-            [InlineKeyboardButton("🕒 Recent Uploads", callback_data="recent_0"),
-             InlineKeyboardButton("🔎 Search", callback_data="search_hint")],
-            [InlineKeyboardButton("ℹ️ About", callback_data="about"),
-             InlineKeyboardButton("❓ Help", callback_data="help")],
+            [InlineKeyboardButton("🔵 My Files", callback_data="myfiles_0"),
+             InlineKeyboardButton("🟡 Favorites", callback_data="favs_0")],
+            [InlineKeyboardButton("🟢 Recent Uploads", callback_data="recent_0"),
+             InlineKeyboardButton("🟣 Search", callback_data="search_hint")],
+            [InlineKeyboardButton("⚪ About", callback_data="about"),
+             InlineKeyboardButton("🔴 Help", callback_data="help")],
         ]
     )
 
@@ -104,6 +104,11 @@ async def about_cmd(client: Client, message: Message):
     await message.reply(ABOUT_TEXT)
 
 
+@Client.on_message(filters.command("privacy") & filters.private)
+async def privacy_cmd(client: Client, message: Message):
+    await message.reply(PRIVACY_TEXT, disable_web_page_preview=True)
+
+
 HELP_TEXT = """
 📖 **Bot Commands**
 
@@ -124,4 +129,20 @@ ABOUT_TEXT = """
 ⚙️ Built with Pyrogram + MongoDB
 ☁️ Hosted 24/7 on Render
 🔗 Permanent, unlimited file links
+"""
+
+PRIVACY_TEXT = """
+🔒 **Privacy Policy**
+
+**What we collect:** your Telegram user ID, username, name, and the files you upload (name, size, type, upload time).
+
+**How we use it:** only to run the file storage service — generating links, letting you search/rename/delete/favorite your files, and basic usage stats.
+
+**Where it's stored:** files are stored in a private Telegram channel; metadata is stored in a secure MongoDB database.
+
+**Your control:** you can delete any file you uploaded anytime via /myfiles. Contact the admin for full data deletion.
+
+**We never sell or share your data** with third parties for advertising.
+
+📄 Full policy: contact the bot admin for the complete document.
 """
