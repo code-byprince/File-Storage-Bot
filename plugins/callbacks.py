@@ -80,16 +80,16 @@ async def open_file_cb(client: Client, cq: CallbackQuery):
         f"🔗 {link}"
     )
     is_owner = f["owner_id"] == cq.from_user.id
-    buttons = [[InlineKeyboardButton("⬇️ Download / Preview", callback_data=f"get_{code}")]]
+    buttons = [[InlineKeyboardButton("🔵 Download / Preview", callback_data=f"get_{code}")]]
     if is_owner or cq.from_user.id in Config.ADMINS:
         buttons.append(
             [
                 InlineKeyboardButton(
-                    "⭐ Unfavorite" if f.get("favorite") else "⭐ Favorite",
+                    "🟢 Unfavorite" if f.get("favorite") else "⭐ Favorite",
                     callback_data=f"fav_{code}",
                 ),
-                InlineKeyboardButton("✏️ Rename", callback_data=f"ren_{code}"),
-                InlineKeyboardButton("🗑 Delete", callback_data=f"del_{code}"),
+                InlineKeyboardButton("🟡 Rename", callback_data=f"ren_{code}"),
+                InlineKeyboardButton("🔴 Delete", callback_data=f"del_{code}"),
             ]
         )
     buttons.append([InlineKeyboardButton("⬅️ Back", callback_data="myfiles_0")])
