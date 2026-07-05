@@ -33,7 +33,6 @@ def uptime() -> str:
 
 
 def encode_code(msg_id: int) -> str:
-    """Turn a DB-channel message id into a short URL-safe code."""
     raw = str(msg_id).encode("utf-8")
     return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
 
