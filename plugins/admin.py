@@ -1,22 +1,27 @@
 import asyncio
-from telegram import Update
-from telegram.ext import ContextTypes
+from pyrogram import Client, filters
+from pyrogram.types import Message
 
 from config import Config
 from database import db
-from utils.helpers import human_size
+from utils.helpers import human_size, uptime
 
 
-def is_admin(user_id: int) -> bool:
-    return user_id in Config.ADMINS
+def admin_only(func):
+    async def wrapper(client: Client, message: Message):
+        if message.from_user.id not in Config.ADMINS:
+            await message.reply("🚫 This command is for admins only.")
+            return
+        await func(client, message)
+
+    return wrapper
 
 
-async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.effective_message.reply_text("🚫 This command is for admins only.")
-        return
+@Client.on_message(filters.command("admin") & filters.private)
+@admin_only
+async def admin_panel(client: Client, message: Message):
     text = (
-        "👨‍💼 Admin Panel\n\n"
+        "👨‍💼 **Admin Panel**\n\n"
         "/broadcast <reply to a message> — send to all users\n"
         "/ban <user_id> — ban a user\n"
         "/unban <user_id> — unban a user\n"
@@ -25,112 +30,102 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/dellog — view recent admin actions\n"
         "/stats — full dashboard\n"
     )
-    await update.effective_message.reply_text(text)
+    await message.reply(text)
 
 
-async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.effective_message.reply_text("🚫 This command is for admins only.")
-        return
-    message = update.effective_message
+@Client.on_message(filters.command("broadcast") & filters.private)
+@admin_only
+async def broadcast_cmd(client: Client, message: Message):
     if not message.reply_to_message:
-        await message.reply_text("Reply to a message with /broadcast to send it to all users.")
+        await message.reply("Reply to a message with /broadcast to send it to all users.")
         return
     user_ids = await db.all_user_ids()
     sent, failed = 0, 0
-    status = await message.reply_text(f"📢 Broadcasting to {len(user_ids)} users...")
+    status = await message.reply(f"📢 Broadcasting to {len(user_ids)} users...")
     for uid in user_ids:
         try:
-            await context.bot.copy_message(
-                chat_id=uid,
-                from_chat_id=message.chat_id,
-                message_id=message.reply_to_message.message_id,
-            )
+            await message.reply_to_message.copy(uid)
             sent += 1
         except Exception:
             failed += 1
-        await asyncio.sleep(0.05)
-    await db.add_log(update.effective_user.id, f"Broadcast sent ({sent} ok / {failed} failed)")
-    await status.edit_text(f"✅ Broadcast complete.\nSent: {sent}\nFailed: {failed}")
+        await asyncio.sleep(0.05)  # avoid flood limits
+    await db.add_log(message.from_user.id, f"Broadcast sent ({sent} ok / {failed} failed)")
+    await status.edit(f"✅ Broadcast complete.\nSent: {sent}\nFailed: {failed}")
 
 
-async def ban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.effective_message.reply_text("🚫 This command is for admins only.")
+@Client.on_message(filters.command("ban") & filters.private)
+@admin_only
+async def ban_cmd(client: Client, message: Message):
+    if len(message.command) < 2:
+        await message.reply("Usage: `/ban <user_id>`")
         return
-    if not context.args:
-        await update.effective_message.reply_text("Usage: /ban <user_id>")
-        return
-    uid = int(context.args[0])
+    uid = int(message.command[1])
     await db.ban_user(uid)
-    await db.add_log(update.effective_user.id, f"Banned user {uid}")
-    await update.effective_message.reply_text(f"🚫 User {uid} banned.")
+    await db.add_log(message.from_user.id, f"Banned user {uid}")
+    await message.reply(f"🚫 User `{uid}` banned.")
 
 
-async def unban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.effective_message.reply_text("🚫 This command is for admins only.")
+@Client.on_message(filters.command("unban") & filters.private)
+@admin_only
+async def unban_cmd(client: Client, message: Message):
+    if len(message.command) < 2:
+        await message.reply("Usage: `/unban <user_id>`")
         return
-    if not context.args:
-        await update.effective_message.reply_text("Usage: /unban <user_id>")
-        return
-    uid = int(context.args[0])
+    uid = int(message.command[1])
     await db.unban_user(uid)
-    await db.add_log(update.effective_user.id, f"Unbanned user {uid}")
-    await update.effective_message.reply_text(f"✅ User {uid} unbanned.")
+    await db.add_log(message.from_user.id, f"Unbanned user {uid}")
+    await message.reply(f"✅ User `{uid}` unbanned.")
 
 
-async def users_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.effective_message.reply_text("🚫 This command is for admins only.")
-        return
+@Client.on_message(filters.command("users") & filters.private)
+@admin_only
+async def users_cmd(client: Client, message: Message):
     total = await db.total_users()
-    await update.effective_message.reply_text(f"👥 Total Users: {total}")
+    await message.reply(f"👥 Total Users: `{total}`")
 
 
-async def searchfile_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.effective_message.reply_text("🚫 This command is for admins only.")
+@Client.on_message(filters.command("searchfile") & filters.private)
+@admin_only
+async def searchfile_cmd(client: Client, message: Message):
+    if len(message.command) < 2:
+        await message.reply("Usage: `/searchfile <keyword>`")
         return
-    if not context.args:
-        await update.effective_message.reply_text("Usage: /searchfile <keyword>")
-        return
-    keyword = " ".join(context.args)
+    keyword = " ".join(message.command[1:])
     results = await db.search_all_files(keyword)
     if not results:
-        await update.effective_message.reply_text("No files found.")
+        await message.reply("No files found.")
         return
-    lines = [f"• {f['file_name']} ({human_size(f['file_size'])}) — owner {f['owner_id']}" for f in results]
-    await update.effective_message.reply_text("🔎 Search Results:\n\n" + "\n".join(lines))
+    lines = [f"• {f['file_name']} ({human_size(f['file_size'])}) — owner `{f['owner_id']}`" for f in results]
+    await message.reply("🔎 **Search Results:**\n\n" + "\n".join(lines))
 
 
-async def dellog_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.effective_message.reply_text("🚫 This command is for admins only.")
-        return
+@Client.on_message(filters.command("dellog") & filters.private)
+@admin_only
+async def logs_cmd(client: Client, message: Message):
     logs = await db.get_logs()
     if not logs:
-        await update.effective_message.reply_text("No admin logs yet.")
+        await message.reply("No admin logs yet.")
         return
-    lines = [f"• {l['admin_id']} — {l['action']} — {l['time'].strftime('%Y-%m-%d %H:%M')}" for l in logs]
-    await update.effective_message.reply_text("📝 Admin Logs:\n\n" + "\n".join(lines))
+    lines = [f"• `{l['admin_id']}` — {l['action']} — {l['time'].strftime('%Y-%m-%d %H:%M')}" for l in logs]
+    await message.reply("📝 **Admin Logs:**\n\n" + "\n".join(lines))
 
 
-async def get_channel_id_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        return
-    message = update.effective_message
-    origin = message.forward_origin
-    if origin and getattr(origin, "chat", None):
-        fwd_chat = origin.chat
-        await message.reply_text(
-            f"✅ Channel Detected!\n\n"
-            f"📛 Name: {fwd_chat.title}\n"
-            f"🆔 ID: {fwd_chat.id}\n\n"
-            f"👉 Copy this exact ID into your DB_CHANNEL environment variable on Render, then redeploy."
+@Client.on_message(filters.private & filters.forwarded & filters.text)
+@admin_only
+async def get_channel_id_cmd(client: Client, message: Message):
+    """Admin forwards a TEXT message FROM the private DB channel to this bot,
+    and the bot replies with the exact channel ID Pyrogram recognizes."""
+    if message.forward_from_chat:
+        chat = message.forward_from_chat
+        await message.reply(
+            f"✅ **Channel Detected!**\n\n"
+            f"📛 Name: {chat.title}\n"
+            f"🆔 ID: `{chat.id}`\n\n"
+            f"👉 Copy this exact ID and put it in your `DB_CHANNEL` environment variable on Render, "
+            f"then redeploy."
         )
     else:
-        await message.reply_text(
+        await message.reply(
             "⚠️ This doesn't look like a forward from a channel. "
             "Please forward a message directly from your private DB channel to me."
-    )
+        )
